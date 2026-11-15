@@ -4,228 +4,334 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>The Town of Hudson</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Gugi&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #0a0a0a; --panel: #121212; --panel-2: #1b1b1b; --line: #2f2f2f; --rule: #bdbdbd;
-    --text: #f1efe9; --cream: #f2ead8; --muted: #a29b8c; --gold: #d6ab35; --gold-ink: #121212; --danger: #c8584f;
+    --page: #1a1aa8;        /* royal blue page */
+    --bar: #00007a;         /* box title bars */
+    --bar-red: #9a0000;
+    --line: #00007a;
+    --link: #0000cc;
+    --ink: #000;
+    --muted: #555;
+    --yellow: #ffcc00;
+    --gold: #ffcc00; --gold-ink: #00007a; --danger: #cc0000;
     --photo: url("bench.jpg");
-    --display: "Gugi", "Poiret One", Georgia, sans-serif;
-    --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
+    --ui: Verdana, Tahoma, Geneva, Arial, sans-serif;
+    --head: Arial, Helvetica, sans-serif;
   }
   * { box-sizing: border-box; }
-  html, body { background: #000; }
-  body { margin: 0; color: var(--text); font: 16px/1.5 var(--mono); min-height: 100vh; display: flex; flex-direction: column; }
+  html, body { background: var(--page); }
+  body { margin: 0; color: var(--ink); font: 11px/1.35 var(--ui); }
   [hidden] { display: none !important; }
-  button { font: inherit; cursor: pointer; }
-  input { font: inherit; }
+  a { color: var(--link); }
+  button, input { font: inherit; }
 
-  .btn { background: var(--gold); color: var(--gold-ink); border: 0; border-radius: 0; padding: 6px 12px;
-    font: 500 18px/1.3 var(--mono); transition: filter .15s, transform .15s; }
-  .btn:hover { filter: brightness(1.12); }
-  .btn:active { transform: translateY(1px); }
-  .btn:focus-visible, .ghost:focus-visible, input:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
-  .ghost { background: transparent; color: var(--text); border: 1px solid var(--line); border-radius: 0; padding: 8px 12px; }
-  .ghost:hover { border-color: var(--gold); color: var(--gold); }
-  .ghost.danger:hover { border-color: var(--danger); color: var(--danger); }
-  .field { background: rgba(0,0,0,.55); color: var(--text); border: 1px solid #555; border-radius: 0; padding: 8px 12px; min-width: 0; }
-  .field::placeholder { color: #7d7a73; }
-  input[type=range] { accent-color: var(--gold); }
+  /* ---------- Page shell (fixed-width, like 2002) ---------- */
+  .site { width: 100%; max-width: 780px; margin: 0 auto; }
+  .masthead { display: flex; align-items: center; gap: 10px; padding: 6px 6px 2px; }
+  .emblem { width: 58px; height: 58px; flex: none; border-radius: 50%; display: grid; place-items: center;
+    background: radial-gradient(circle at 35% 30%, #9fb4ff 0%, #3b55e0 45%, #0b0b6e 100%); border: 3px solid #fff;
+    box-shadow: inset 0 0 0 2px #00007a; color: #fff; font: 900 32px/1 "Arial Black", Arial, sans-serif; text-shadow: 1px 1px 0 #00004a; }
+  .wordmark { flex: 1; min-width: 0; }
+  .wordmark .name { font: 900 clamp(22px, 5.2vw, 38px)/1 "Arial Black", Arial, sans-serif; color: #fff; letter-spacing: .02em;
+    text-shadow: 2px 2px 0 #00004a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .wordmark .name span { font-weight: 400; }
+  .ticker { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+  .ticker b { color: #fff; font: bold 10px var(--head); }
+  .ticker .tape { flex: 1; min-width: 0; background: #fff; border: 1px solid #000; padding: 1px 4px; font-size: 10px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .date { align-self: flex-start; color: #fff; font-size: 10px; padding-top: 2px; white-space: nowrap; }
 
-  /* Status (top-right) */
-  .status { position: fixed; top: 14px; right: 16px; z-index: 5; font-size: 13px; color: var(--muted);
-    display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,.55); padding: 4px 10px; border: 1px solid var(--line); }
-  .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
-  .dot.live { background: var(--gold); box-shadow: 0 0 8px var(--gold); }
-  .dot.bad { background: var(--danger); }
+  .cols { display: grid; grid-template-columns: 112px minmax(0, 1fr) 170px; gap: 6px; padding: 4px 6px 6px; align-items: start; }
 
-  /* ---------- Hero ---------- */
-  /* Black page, photo framed in the middle, see-through title band across the top */
-  .hero { position: relative; flex: 1; display: flex; justify-content: center; background: #000; padding: 0 0 8px; }
-  .stage { position: relative; width: min(1120px, 100%); display: flex; flex-direction: column; }
-  .frame { position: relative; height: clamp(440px, 72vh, 780px); overflow: hidden; }
-  .hero-art { position: absolute; inset: 0; background: #000 var(--photo) 50% 70% / cover no-repeat;
-    filter: grayscale(1) contrast(1.05); }
-  .hero-shade { position: absolute; inset: 0;
-    background: linear-gradient(to bottom, transparent 0%, transparent 85%, rgba(0,0,0,.6) 100%); }
-  .band { position: absolute; top: 0; left: 0; right: 0; z-index: 2; text-align: center;
-    background: rgba(28,28,28,.72); -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
-    padding: clamp(18px, 3.2vh, 30px) 16px clamp(14px, 2.4vh, 22px); }
-  h1 { font: 400 clamp(30px, 4.6vw, 58px)/1 var(--display); text-transform: uppercase; letter-spacing: .05em; color: var(--cream);
-    margin: 0; text-shadow: 0 2px 18px rgba(0,0,0,.5); }
-  .deco { display: flex; align-items: center; gap: 12px; width: min(360px, 70%); margin: 12px auto 0; color: var(--gold); font-size: 10px; }
-  .deco::before, .deco::after { content: ""; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--gold)); }
-  .deco::after { background: linear-gradient(90deg, var(--gold), transparent); }
-  .hero-copy { position: relative; z-index: 2; display: flex; flex-direction: column; align-items: center;
-    text-align: center; padding: clamp(22px, 4vh, 34px) 20px clamp(22px, 4vh, 34px); }
-  .lede { font-size: clamp(15px, 1.35vw, 18px); line-height: 1.5; margin: 0 auto 20px; max-width: 560px; color: var(--cream); text-shadow: 0 1px 10px rgba(0,0,0,.85); }
-  .cta { display: flex; justify-content: center; }
-  .join-form { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
-  .join-form .field { width: 180px; text-transform: uppercase; letter-spacing: .2em; text-align: center; font-size: 18px; }
+  /* Left sidebar */
+  .side { color: #fff; }
+  .side .tag { font: bold 11px var(--head); margin: 2px 0 2px; }
+  .side .search { font-size: 10px; font-weight: bold; text-align: center; margin: 4px 0 2px; }
+  .side form { display: flex; gap: 2px; margin-bottom: 8px; }
+  .side input { width: 100%; min-width: 0; font-size: 10px; padding: 1px 3px; border: 1px solid #000; text-transform: uppercase; }
+  .side .go { background: #ccc; border: 1px outset #fff; font-size: 9px; font-weight: bold; padding: 0 3px; cursor: pointer; color: #000; }
+  .nav { list-style: none; margin: 0 0 10px; padding: 0; }
+  .nav li { margin: 0; }
+  .nav a, .nav button { display: block; width: 100%; text-align: left; background: none; border: 0; padding: 0; cursor: pointer;
+    color: #fff; font: bold 10px/1.35 var(--head); text-transform: uppercase; text-decoration: none; }
+  .nav a:hover, .nav button:hover { color: var(--yellow); text-decoration: underline; }
+  .nav .soon { color: #9fa8ff; font: bold 10px/1.35 var(--head); text-transform: uppercase; }
+  .promo-side { background: var(--yellow); border: 2px solid #fff; color: #cc0000; text-align: center; padding: 6px 4px; margin-bottom: 8px; }
+  .promo-side .t1 { font: bold italic 11px var(--head); color: #00007a; }
+  .promo-side .t2 { font: 900 13px "Arial Black", Arial, sans-serif; color: #cc0000; margin-top: 2px; }
 
-  /* Player panel inside hero */
-  .player-panel { display: flex; flex-direction: column; align-items: center; }
-  .join-msg { margin: 14px auto 0; max-width: 520px; text-align: center; color: #f0c9c4; font-size: 14px; text-shadow: 0 1px 8px #000; }
+  /* Boxes */
+  .box { background: #fff; border: 1px solid var(--line); margin-bottom: 6px; }
+  .box > .hd { background: var(--bar); color: #fff; font: bold 10px/1 var(--head); text-transform: uppercase; padding: 3px 5px; letter-spacing: .02em; }
+  .box.red > .hd { background: var(--bar-red); }
+  .box > .bd { padding: 5px 6px; }
+  .box ul { margin: 0; padding-left: 14px; }
+  .box li { margin: 1px 0; }
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .grid2 .box { margin-bottom: 0; }
+
+  /* Feature story */
+  .feature { display: flex; gap: 8px; }
+  .feature .pic { width: 150px; flex: none; aspect-ratio: 4/3; background: #000 var(--photo) 30% 75% / cover no-repeat; border: 1px solid #000; filter: grayscale(1); }
+  .feature h1 { font: bold 14px/1.15 var(--head); color: #00007a; margin: 0 0 4px; text-decoration: underline; }
+  .lede { margin: 0 0 6px; }
+  .cta { margin-top: 6px; }
+  .join-form { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; margin-top: 6px; }
+  .join-form .field { width: 120px; text-transform: uppercase; letter-spacing: .1em; }
+  .join-msg { color: #cc0000; font-weight: bold; margin: 6px 0 0; }
+  .vol { display: flex; align-items: center; gap: 6px; margin: 4px 0; font-weight: bold; }
+  .vol input { width: 140px; }
+  .leave-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 6px; }
+  .small { font-size: 10px; color: var(--muted); }
+  .small b { color: #00007a; letter-spacing: .1em; }
+  .linkrow { margin-top: 6px; font-size: 10px; }
+
+  /* Buttons & fields, 2002 style */
+  .btn { background: var(--yellow); color: #00007a; border: 2px outset #ffe680; border-radius: 0; padding: 2px 10px;
+    font: bold 11px var(--ui); cursor: pointer; }
+  .btn:active { border-style: inset; }
   .btn:disabled { opacity: .6; cursor: wait; }
-  .vol { display: flex; align-items: center; gap: 12px; color: var(--cream); font-size: 14px; text-shadow: 0 1px 8px #000; }
-  .vol input { width: 200px; max-width: 50vw; }
-  .leave-row { display: flex; align-items: center; justify-content: center; gap: 16px; flex-wrap: wrap; margin-top: 18px; }
-  .leave-row .ghost { background: rgba(0,0,0,.5); }
-  .small { font-size: 13px; color: var(--muted); }
-  .small b { color: var(--gold); font-weight: 500; letter-spacing: .15em; }
+  .ghost { background: #ddd; color: #000; border: 2px outset #fff; border-radius: 0; padding: 1px 8px; font: 11px var(--ui); cursor: pointer; }
+  .ghost:active { border-style: inset; }
+  .ghost.danger { color: #cc0000; font-weight: bold; }
+  .field { background: #fff; color: #000; border: 2px inset #ccc; border-radius: 0; padding: 2px 4px; font: 11px var(--ui); min-width: 0; }
+  .btn:focus-visible, .ghost:focus-visible, .field:focus-visible, .nav button:focus-visible, .go:focus-visible { outline: 1px dotted #000; outline-offset: 1px; }
+  input[type=range] { accent-color: #00007a; }
 
-  /* ---------- DM board ---------- */
-  .dm { flex: 1; width: 100%; max-width: 1080px; margin: 0 auto; padding: 32px 16px 48px; }
-  .dm-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 24px; }
-  .dm-head h2 { font: 400 clamp(28px, 4vw, 44px)/1 var(--display); text-transform: uppercase; margin: 0; }
-  .dm-head .sub { color: var(--muted); font-size: 13px; letter-spacing: .25em; text-transform: uppercase; margin-top: 6px; }
-  .panel { background: var(--panel); border: 1px solid var(--line); padding: 18px; margin-bottom: 16px; }
-  .panel h3 { font: 500 13px var(--mono); letter-spacing: .25em; text-transform: uppercase; color: var(--muted); margin: 0 0 12px; }
-  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
-  .row .field { flex: 1 1 180px; }
-  .code { font: 500 26px/1 var(--mono); letter-spacing: .2em; color: var(--gold); }
-  .link { font-size: 13px; color: var(--muted); word-break: break-all; flex: 1 1 240px; }
-  .check { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); font-size: 14px; }
-  .hint { color: var(--muted); font-size: 13px; margin: 10px 0 0; }
-  .hint code { color: var(--text); }
-  .bar { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin: 20px 0 16px; }
+  /* Right column promo */
+  .promo { background: var(--yellow); border: 1px solid #00007a; text-align: center; padding: 6px 4px; margin-bottom: 6px; cursor: pointer; }
+  .promo .t1 { font: 900 20px/1 "Arial Black", Arial, sans-serif; color: #00007a; font-style: italic; }
+  .promo .t2 { font: bold italic 11px var(--head); color: #00007a; margin-top: 2px; }
+  .promo .t3 { font: bold italic 11px var(--head); color: #cc0000; }
+  .promo:hover .t1 { text-decoration: underline; }
+  .datebox { font-weight: bold; color: #00007a; }
+
+  /* Status (Game Master only) */
+  .status { display: inline-flex; align-items: center; gap: 5px; font-size: 10px; color: #fff; }
+  .dot { width: 8px; height: 8px; border-radius: 50%; background: #999; border: 1px solid #fff; }
+  .dot.live { background: #33cc33; }
+  .dot.bad { background: #cc0000; }
+
+  /* ---------- Game Master board ---------- */
+  .dm { padding: 4px 6px 6px; }
+  .dm-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; color: #fff; }
+  .dm-head h2 { font: bold 14px var(--head); margin: 0; text-transform: uppercase; }
+  .panel { background: #fff; border: 1px solid var(--line); margin-bottom: 6px; padding: 0 0 6px; }
+  .panel h3 { background: var(--bar); color: #fff; font: bold 10px/1 var(--head); text-transform: uppercase; margin: 0 0 5px; padding: 3px 5px; }
+  .panel > *:not(h3) { margin-left: 6px; margin-right: 6px; }
+  .row { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+  .row .field { flex: 1 1 160px; }
+  .codes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .codes .panel { margin-bottom: 0; }
+  .code { font: bold 20px/1.1 "Courier New", monospace; color: #00007a; letter-spacing: .15em; }
+  .link { font-size: 10px; color: var(--muted); word-break: break-all; flex: 1 1 200px; }
+  .check { display: inline-flex; gap: 4px; align-items: center; }
+  .hint { color: var(--muted); font-size: 10px; margin: 5px 6px 0; }
+  .bar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; background: #fff; border: 1px solid var(--line); padding: 4px 6px; margin-bottom: 6px; }
   .bar .grow { flex: 1; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(210px, 100%), 1fr)); gap: 12px; }
-  .pad { min-width: 0; background: var(--panel); border: 1px solid var(--line); display: flex; flex-direction: column; transition: border-color .15s, box-shadow .15s; }
-  .pad.playing { border-color: var(--gold); box-shadow: 0 0 0 1px var(--gold), 0 0 22px rgba(214,171,53,.18); }
-  .pad .hit { all: unset; cursor: pointer; display: block; position: relative; aspect-ratio: 16/9;
-    background: #000 center/cover no-repeat; filter: grayscale(1) contrast(1.1) brightness(.8); transition: filter .2s; }
-  .pad .hit:hover, .pad.playing .hit { filter: grayscale(.2) contrast(1.05) brightness(.9); }
-  .pad .hit:focus-visible { outline: 2px solid var(--gold); outline-offset: -2px; }
-  .pad .hit::after { content: "▶"; position: absolute; inset: 0; display: grid; place-items: center;
-    font-size: 30px; color: #fff; background: rgba(0,0,0,.3); text-shadow: 0 2px 6px #000; }
-  .pad.playing .hit::after { content: "■"; color: var(--gold); }
-  .pad .body { padding: 10px 12px 12px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; min-width: 0; }
-  .pad .name { font-weight: 500; font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .pad .ctl { display: grid; grid-template-columns: minmax(0, 1fr) auto 28px; align-items: center; gap: 10px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(170px, 100%), 1fr)); gap: 6px; }
+  .pad { min-width: 0; background: #fff; border: 1px solid var(--line); display: flex; flex-direction: column; }
+  .pad.playing { outline: 3px solid var(--yellow); outline-offset: -1px; }
+  .pad .hit { all: unset; cursor: pointer; display: block; position: relative; aspect-ratio: 16/9; background: #000 center/cover no-repeat; border-bottom: 1px solid var(--line); }
+  .pad .hit:focus-visible { outline: 2px dotted #fff; outline-offset: -4px; }
+  .pad .hit::after { content: "▶ PLAY"; position: absolute; left: 0; bottom: 0; background: var(--bar); color: #fff; font: bold 9px var(--head); padding: 2px 5px; }
+  .pad.playing .hit::after { content: "■ STOP"; background: #cc0000; }
+  .pad .body { padding: 4px 5px 5px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 4px; min-width: 0; }
+  .pad .name { font-weight: bold; color: #00007a; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pad .ctl { display: grid; grid-template-columns: minmax(0, 1fr) auto 22px; align-items: center; gap: 6px; }
   .pad .ctl input[type=range] { width: 100%; min-width: 0; margin: 0; }
-  .pad .ctl .check { white-space: nowrap; font-size: 13px; }
-  .pad .ctl .ghost { width: 28px; height: 28px; padding: 0; font-size: 13px; display: grid; place-items: center; }
-  .empty { color: var(--muted); text-align: center; padding: 40px 16px; border: 1px dashed var(--line); grid-column: 1 / -1; }
+  .pad .ctl .check { white-space: nowrap; font-size: 10px; }
+  .pad .ctl .ghost { width: 22px; height: 20px; padding: 0; font-size: 10px; display: grid; place-items: center; }
+  .empty { background: #fff; border: 1px dashed var(--line); color: var(--muted); text-align: center; padding: 20px 10px; grid-column: 1 / -1; }
 
   /* ---------- Footer ---------- */
-  body.gm { background: linear-gradient(rgba(10,9,8,.9), rgba(10,9,8,.97)), var(--photo) center / cover fixed; }
-  body.gm .panel, body.gm .pad { background: rgba(18,17,15,.88); }
-  footer { padding: 0 16px; background: #000; }
-  body.gm footer { background: transparent; }
-  footer .inner { max-width: 1120px; margin: 0 auto; border-top: 1px solid rgba(214,171,53,.35); padding: 18px 0 22px; display: flex; justify-content: space-between;
-    gap: 12px; flex-wrap: wrap; color: #bdbab3; font-size: 14px; }
-  .linkish { background: none; border: 0; padding: 0; color: #7d7a73; font-size: 13px; letter-spacing: .1em; }
-  .linkish:hover { color: var(--gold); }
+  footer { background: #fff; border-top: 1px solid #000; text-align: center; padding: 4px 6px 6px; font-size: 10px; }
+  footer a, footer .linkish { color: var(--link); text-decoration: underline; background: none; border: 0; padding: 0; cursor: pointer; font: 10px var(--ui); }
 
   /* Overlays */
-  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.78); display: grid; place-items: center; z-index: 10; padding: 16px; }
-  .overlay .btn { font-size: 20px; padding: 14px 24px; }
-  .toast { position: fixed; left: 50%; bottom: 24px; transform: translateX(-50%); background: var(--panel-2); border: 1px solid var(--line);
-    border-left: 2px solid var(--gold); padding: 10px 16px; z-index: 20; max-width: calc(100% - 32px); font-size: 14px; }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,40,.7); display: grid; place-items: center; z-index: 10; padding: 16px; }
+  .overlay .btn { font-size: 16px; padding: 10px 18px; }
+  .toast { position: fixed; left: 50%; bottom: 16px; transform: translateX(-50%); background: #ffffcc; border: 1px solid #000; padding: 6px 10px;
+    z-index: 20; max-width: calc(100% - 32px); font: bold 11px var(--ui); }
   #yt-box { position: fixed; left: -9999px; top: 0; width: 200px; height: 113px; overflow: hidden; }
 
-  @media (max-width: 760px) {
-    .frame { height: 62vh; min-height: 380px; }
-    .hero-art { background-position: 30% 75%; }
+  @media (max-width: 700px) {
+    .cols { grid-template-columns: 1fr; }
+    .side { order: 3; }
+    .right { order: 2; }
+    .grid2, .codes { grid-template-columns: 1fr; }
+    .feature { flex-direction: column; }
+    .feature .pic { width: 100%; }
+    .date { display: none; }
+    .emblem { width: 44px; height: 44px; font-size: 24px; }
   }
 </style>
 </head>
 <body>
-<div class="status" id="statusBox" hidden><span id="dot" class="dot"></span><span id="statusText">Not connected</span></div>
+<div class="site">
 
-<!-- Hero / player view -->
-<section id="hero" class="hero">
- <div class="band">
-   <h1>The Town of Hudson</h1>
-   <div class="deco" aria-hidden="true">◆</div>
- </div>
- <div class="stage">
-  <div class="frame" aria-hidden="true">
-    <div class="hero-art"></div>
-    <div class="hero-shade"></div>
-  </div>
-  <div class="hero-copy">
+  <header class="masthead">
+    <div class="emblem" aria-hidden="true">H</div>
+    <div class="wordmark">
+      <div class="name">TheTownOfHudson<span>.com</span></div>
+      <div class="ticker"><b>NEWS</b><div class="tape">Welcome to The Town of Hudson, we do hope that you enjoy your stay.</div></div>
+    </div>
+    <div class="date" id="today"></div>
+  </header>
 
-    <div id="home">
-      <p class="lede">Welcome to The Town of Hudson, we do hope that you enjoy your stay.</p>
-      <div class="cta" id="cta"><button class="btn" id="joinStart">Join the Session</button></div>
-      <form id="joinForm" class="join-form" hidden>
-        <input id="joinCode" class="field" placeholder="Room code" autocomplete="off" maxlength="12" aria-label="Room code">
-        <button class="btn" id="enterBtn">Enter</button>
+  <!-- Welcome page / player view -->
+  <section id="hero" class="cols">
+
+    <aside class="side">
+      <div class="tag">Hudson's Home Page.</div>
+      <div class="search">JOIN A SESSION</div>
+      <form id="sideJoin" autocomplete="off">
+        <input id="sideCode" placeholder="CODE" maxlength="12" aria-label="Room code">
+        <button class="go">GO</button>
       </form>
-      <p id="joinMsg" class="join-msg" role="alert" hidden></p>
-    </div>
-
-    <div id="player" class="player-panel" hidden>
-      <p class="lede">Welcome to The Town of Hudson, we do hope that you enjoy your stay.</p>
-      <label class="vol">Volume <input type="range" id="myVol" min="0" max="100" value="100"></label>
-      <div class="leave-row">
-        <span class="small">Room <b id="pRoom"></b></span>
-        <button class="ghost" id="leavePlayer">Leave session</button>
+      <ul class="nav">
+        <li><a href="#top" id="navHome">Home</a></li>
+        <li><button type="button" id="navJoin">Join Session</button></li>
+        <li><span class="soon">Town News</span></li>
+        <li><span class="soon">Residents</span></li>
+        <li><span class="soon">Town Map</span></li>
+        <li><button type="button" id="startDm">Game Master</button></li>
+      </ul>
+      <div class="promo-side">
+        <div class="t1">SOUNDS OF HUDSON</div>
+        <div class="t2">LISTEN IN!</div>
       </div>
-    </div>
-  </div>
- </div>
-</section>
+    </aside>
 
-<!-- DM board -->
-<section id="dm" class="dm" hidden>
-  <div class="dm-head">
-    <div>
-      <h2>The Town of Hudson</h2>
-      <div class="sub">Game Master · Soundboard</div>
-    </div>
-    <button class="ghost danger" id="leaveDm">End session &amp; leave</button>
-  </div>
+    <main class="main">
+      <div class="box">
+        <div class="bd">
+          <div class="feature">
+            <div class="pic" role="img" aria-label="Five townsfolk sitting on a bench outside a shop"></div>
+            <div style="min-width:0; flex:1">
+              <h1>Welcome to The Town of Hudson</h1>
 
-  <div class="panel">
-    <div class="row" style="justify-content:space-between; align-items:flex-end">
-      <div>
+              <div id="home">
+                <p class="lede">Welcome to The Town of Hudson, we do hope that you enjoy your stay.</p>
+                <div class="cta" id="cta"><button class="btn" id="joinStart">Join the Session</button></div>
+                <form id="joinForm" class="join-form" hidden>
+                  <input id="joinCode" class="field" placeholder="Room code" autocomplete="off" maxlength="12" aria-label="Room code">
+                  <button class="btn" id="enterBtn">Enter</button>
+                </form>
+                <p id="joinMsg" class="join-msg" role="alert" hidden></p>
+              </div>
+
+              <div id="player" hidden>
+                <p class="lede">Welcome to The Town of Hudson, we do hope that you enjoy your stay.</p>
+                <label class="vol">Volume <input type="range" id="myVol" min="0" max="100" value="100"></label>
+                <div class="leave-row">
+                  <span class="small">Room <b id="pRoom"></b></span>
+                  <button class="ghost" id="leavePlayer">Leave session</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="box">
+          <div class="hd">How to Join</div>
+          <div class="bd">
+            <ul>
+              <li>Get the room code from your Game Master</li>
+              <li>Type it in the <b>Join a Session</b> box</li>
+              <li>Keep this page open &mdash; sounds play automatically</li>
+            </ul>
+          </div>
+        </div>
+        <div class="box">
+          <div class="hd">Sound Check</div>
+          <div class="bd">
+            Hear nothing? Make sure your speakers are on and this tab isn't muted. If asked, click <b>Tap to turn on sound</b>.
+          </div>
+        </div>
+        <div class="box">
+          <div class="hd">Town Notices</div>
+          <div class="bd">More information about Hudson is <b>coming soon</b>. Check back before the next session.</div>
+        </div>
+        <div class="box" id="gmBox">
+          <div class="hd">Game Master</div>
+          <div class="bd">Running tonight's game? <a href="#" id="gmLink">Open the soundboard</a> to play sounds for every player.</div>
+        </div>
+      </div>
+    </main>
+
+    <aside class="right">
+      <div class="promo" id="promoJoin" role="button" tabindex="0">
+        <div class="t1">JOIN NOW</div>
+        <div class="t2">TONIGHT'S SESSION</div>
+        <div class="t3">HEAR EVERY SOUND LIVE!</div>
+      </div>
+      <div class="box">
+        <div class="hd">Today in Hudson</div>
+        <div class="bd"><div class="datebox" id="todayLong"></div></div>
+      </div>
+      <div class="box red">
+        <div class="hd">Notices</div>
+        <div class="bd">Town information pages are <b>coming soon</b>.</div>
+      </div>
+    </aside>
+  </section>
+
+  <!-- Game Master board -->
+  <section id="dm" class="dm" hidden>
+    <div class="dm-head">
+      <h2>Game Master &middot; Soundboard</h2>
+      <div class="status" id="statusBox" hidden><span id="dot" class="dot"></span><span id="statusText">Not connected</span></div>
+      <button class="ghost danger" id="leaveDm">End session &amp; leave</button>
+    </div>
+
+    <div class="codes">
+      <div class="panel">
         <h3>Room code</h3>
         <div class="code" id="roomCode">------</div>
       </div>
-      <div style="text-align:right">
+      <div class="panel">
         <h3>Players listening</h3>
         <div class="code" id="playerCount" style="letter-spacing:0">0</div>
       </div>
     </div>
-    <div class="row" style="margin-top:14px">
-      <div class="link" id="roomLink"></div>
-      <button class="ghost" id="copyLink">Copy player link</button>
+    <div class="panel" style="margin-top:6px">
+      <h3>Player link</h3>
+      <div class="row">
+        <div class="link" id="roomLink"></div>
+        <button class="ghost" id="copyLink">Copy player link</button>
+      </div>
     </div>
-  </div>
 
-  <form id="addForm" class="panel">
-    <h3>Add a sound</h3>
-    <div class="row">
-      <input id="addUrl" class="field" placeholder="Paste a YouTube link" autocomplete="off" style="flex:3 1 260px">
-      <input id="addName" class="field" placeholder="Name (optional)" autocomplete="off">
+    <form id="addForm" class="panel">
+      <h3>Add a sound</h3>
+      <div class="row">
+        <input id="addUrl" class="field" placeholder="Paste a YouTube link" autocomplete="off" style="flex:3 1 220px">
+        <input id="addName" class="field" placeholder="Name (optional)" autocomplete="off">
+      </div>
+      <div class="row" style="margin-top:6px; justify-content:space-between">
+        <label class="check"><input type="checkbox" id="addLoop"> Loop it (music / ambience)</label>
+        <button class="btn">Add to board</button>
+      </div>
+      <p class="hint">Links with a start time (like <code>?t=45</code>) start from that point.</p>
+    </form>
+
+    <div class="bar">
+      <label class="check"><b>Master volume</b> <input type="range" id="master" min="0" max="100" value="100"></label>
+      <span class="grow"></span>
+      <button id="stopAll" class="ghost danger">Stop all sounds</button>
     </div>
-    <div class="row" style="margin-top:12px; justify-content:space-between">
-      <label class="check"><input type="checkbox" id="addLoop"> Loop it (music / ambience)</label>
-      <button class="btn">Add to board</button>
-    </div>
-    <p class="hint">Links with a start time (like <code>?t=45</code>) start from that point.</p>
-  </form>
 
-  <div class="bar">
-    <label class="check">Master volume <input type="range" id="master" min="0" max="100" value="100"></label>
-    <span class="grow"></span>
-    <button id="stopAll" class="ghost danger">Stop all sounds</button>
-  </div>
+    <div id="pads" class="grid"></div>
+  </section>
 
-  <div id="pads" class="grid"></div>
-</section>
-
-<footer>
-  <div class="inner">
-    <span>© 2026 Town of Hudson. All rights reserved.</span>
-    <button class="linkish" id="startDm">Game Master</button>
-  </div>
-</footer>
+  <footer>
+    Copyright &copy; 2026 The Town of Hudson. All Rights Reserved.
+  </footer>
+</div>
 
 <div id="unlock" class="overlay" hidden><button class="btn" id="unlockBtn">🔊 Tap to turn on sound</button></div>
 <div id="toast" class="toast" hidden></div>
@@ -583,12 +689,12 @@ function joinRoom(raw) {
     urlRoom = null; history.replaceState(null, '', location.pathname);
     $('#player').hidden = true; $('#home').hidden = false;
     $('#cta').hidden = false; $('#joinForm').hidden = true; $('#joinCode').value = '';
-    $('#startDm').hidden = false; joinMsg(text || '');
+    $('#startDm').hidden = false; $('#gmBox').hidden = false; $('#sideCode').value = ''; joinMsg(text || '');
   };
   function enter() {
     joined = true; setJoining(false); joinMsg('');
     history.replaceState(null, '', '?room=' + room);
-    $('#home').hidden = true; $('#player').hidden = false; $('#startDm').hidden = true; $('#pRoom').textContent = room;
+    $('#home').hidden = true; $('#player').hidden = false; $('#startDm').hidden = true; $('#gmBox').hidden = true; $('#pRoom').textContent = room;
     Engine.localVol = store.get('myVol', 100) / 100; $('#myVol').value = Engine.localVol * 100;
   }
 
@@ -659,7 +765,26 @@ $('#joinStart').onclick = () => {
   showJoinForm();
 };
 $('#joinForm').addEventListener('submit', e => { e.preventDefault(); joinRoom($('#joinCode').value); });
-if (urlRoom) $('#startDm').hidden = true;
+if (urlRoom) { $('#startDm').hidden = true; $('#gmBox').hidden = true; }
+
+/* ---------- Portal extras: sidebar join box, menu, promo, date ---------- */
+$('#sideJoin').addEventListener('submit', e => {
+  e.preventDefault();
+  if (peer) return;
+  const code = $('#sideCode').value;
+  showJoinForm(code); joinRoom(code);
+});
+const startJoin = () => { if (!peer) $('#joinStart').click(); };
+$('#navJoin').onclick = startJoin;
+$('#promoJoin').onclick = startJoin;
+$('#promoJoin').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startJoin(); } };
+$('#gmLink').onclick = e => { e.preventDefault(); startDM(); };
+$('#navHome').onclick = e => { e.preventDefault(); window.scrollTo(0, 0); };
+(() => {
+  const d = new Date();
+  $('#today').textContent = d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
+  $('#todayLong').textContent = d.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+})();
 </script>
 </body>
 </html>
