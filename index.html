@@ -11,7 +11,7 @@
   :root {
     --bg: #0a0a0a; --panel: #121212; --panel-2: #1b1b1b; --line: #2f2f2f; --rule: #bdbdbd;
     --text: #f1efe9; --cream: #f2ead8; --muted: #a29b8c; --gold: #d6ab35; --gold-ink: #121212; --danger: #c8584f;
-    --photo: url("ballroom.jpg");
+    --photo: url("town.jpg");
     --display: "Gugi", "Poiret One", Georgia, sans-serif;
     --mono: "IBM Plex Mono", ui-monospace, Consolas, monospace;
   }
@@ -48,12 +48,12 @@
     border: 1px solid rgba(214,171,53,.32); outline: 1px solid rgba(214,171,53,.14); outline-offset: 5px; }
   .hero::before { content: ""; position: absolute; inset: 0; z-index: 1; opacity: .4; mix-blend-mode: overlay; pointer-events: none;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"); }
-  .hero-art { position: absolute; inset: 0; background: #000 var(--photo) 62% 40% / cover no-repeat;
-    filter: grayscale(1) sepia(.22) contrast(1.08) brightness(.9); }
+  .hero-art { position: absolute; inset: 0; background: #000 var(--photo) center / cover no-repeat;
+    filter: grayscale(1) sepia(.12) contrast(1.06) brightness(1.2); }
   .hero-shade { position: absolute; inset: 0;
     background:
-      linear-gradient(90deg, rgba(6,5,4,.96) 0%, rgba(6,5,4,.86) 38%, rgba(6,5,4,.35) 68%, rgba(6,5,4,.5) 100%),
-      linear-gradient(to bottom, rgba(6,5,4,.35) 0%, transparent 25%, transparent 70%, rgba(10,10,10,.95) 100%); }
+      linear-gradient(90deg, rgba(6,5,4,.6) 0%, rgba(6,5,4,.4) 40%, rgba(6,5,4,.08) 72%, rgba(6,5,4,.15) 100%),
+      linear-gradient(to bottom, transparent 0%, transparent 82%, rgba(10,10,10,.9) 100%); }
   .hero-copy { position: relative; z-index: 2; width: 100%; max-width: 720px; padding: 64px clamp(28px, 4vw, 56px); }
   h1 { font: 400 clamp(44px, 6.4vw, 84px)/1 var(--display); text-transform: uppercase; letter-spacing: .01em; color: var(--cream);
     margin: 0 0 18px; text-shadow: 0 2px 24px rgba(0,0,0,.6); }
@@ -128,7 +128,7 @@
 
   @media (max-width: 760px) {
     .hero { align-items: flex-end; min-height: calc(100vh - 70px); }
-    .hero-art { background-position: 55% 30%; }
+    .hero-art { background-position: 60% center; }
     .hero-shade { background: linear-gradient(to bottom, rgba(6,5,4,.25) 0%, rgba(6,5,4,.55) 40%, rgba(6,5,4,.95) 75%, #0a0a0a 100%); }
     .hero-copy { padding: 40px 32px 48px; }
     .cta, .join-form { justify-content: flex-start; }
