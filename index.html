@@ -458,18 +458,28 @@ const Engine = {
     try { e.yt.pauseVideo(); e.yt.seekTo(e.sound.start || 0, true); e.yt.setVolume(this.vol(e.sound)); } catch {}
   },
 
-  // Quick fade so stopping never sounds like a hard cut.
+  // Stop right away with a very short fade (about 0.12 s) so it never sounds like a hard click.
+  // The fade is timed by the clock, not by counting timer ticks, so a slow or background tab
+  // can't stretch it out; a hidden tab skips the fade and stops instantly.
   stop(id) {
     if (!this.active.delete(id)) return;
     const e = this.players.get(id);
     if (e && e.ready) {
-      let v = e.yt.getVolume(); const step = Math.max(1, v / 8);
-      const t = setInterval(() => {
-        if (this.active.has(id) || this.players.get(id) !== e) { clearInterval(t); return; }
-        v -= step;
-        if (v <= 0) { clearInterval(t); this._rewind(e); return; }
-        try { e.yt.setVolume(v); } catch {}
-      }, 30);
+      const FADE_MS = 120;
+      let v0 = this.vol(e.sound); try { v0 = e.yt.getVolume(); } catch {}
+      if (document.hidden || v0 <= 0) this._rewind(e);
+      else {
+        const t0 = performance.now();
+        try { e.yt.setVolume(v0 * 0.5); } catch {}     // audible drop the moment you press stop
+        const tick = () => {
+          if (this.active.has(id) || this.players.get(id) !== e) return;
+          const k = (performance.now() - t0) / FADE_MS;
+          if (k >= 1) { this._rewind(e); return; }
+          try { e.yt.setVolume(v0 * 0.5 * (1 - k)); } catch {}
+          setTimeout(tick, 20);
+        };
+        setTimeout(tick, 20);
+      }
     }
     maybeHideUnlock(); this.onChange();
   },
