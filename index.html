@@ -386,6 +386,8 @@ function parseYouTube(raw) {
 /* ---------- Audio engine (hidden YouTube players, one per sound) ---------- */
 let ytReadyResolve; const ytReady = new Promise(r => ytReadyResolve = r);
 window.onYouTubeIframeAPIReady = () => ytReadyResolve();
+// If the API finished loading before this line ran, its ready callback already fired; don't wait forever.
+(function checkYT() { if (window.YT && YT.loaded && YT.Player) ytReadyResolve(); else setTimeout(checkYT, 200); })();
 
 // "100%" on any slider maps to this YouTube volume, so full volume is comfortable rather than blaring.
 const FULL_VOLUME = 55;
@@ -520,6 +522,20 @@ function newCode() {
 }
 function broadcast(msg) { conns.forEach(c => { if (c.open) c.send(msg); }); }
 function saveSounds() { store.set('sounds', sounds); }
+// [name, YouTube id, loop, volume %]
+const SESSION_TRACKS = [
+  ["Roy's Dream: Wheat Field", 'jYu1-CxNqks', true, 70],
+  ['Waking at the Picket', 'J-1JR8lU1is', true, 80],
+  ['Picket Radio Jazz', 'qW9H2WTotRw', true, 50],
+  ['A1: Crossing the Marsh', 'sO-i3khsYvM', true, 80],
+  ['A2: Shell Point at Dusk', 'IfuetE_IvlY', true, 80],
+  ['A3: The Humming Mound', '5tiORfMI8os', true, 60],
+  ['A3: The Haints Rise', 'pMHO49mD8H8', true, 80],
+  ['B1/B2: Holloway Farm Night', 'Uk61eLAy_zs', true, 80],
+  ['B3: Tribute Wagon', 'tiOZq5EEtss', false, 90],
+  ['Any Fight: WW2 Battle', '01Aw4R29VhQ', true, 40],
+  ['Cliffhanger: Depot Siren', 'xtA24MJphcA', false, 90]
+];
 
 function startDM() {
   if (peer) return;
@@ -531,6 +547,15 @@ function startDM() {
   $('#copyLink').onclick = () => navigator.clipboard.writeText(link).then(() => toast('Player link copied'), () => toast(link));
 
   sounds = store.get('sounds', []);
+  // Tracks for "The Hum and the Harvest" (Nov 15, 2026), added once so removed ones stay removed.
+  if (!store.get('preset-hum-harvest', false)) {
+    const have = new Set(sounds.map(s => s.videoId));
+    SESSION_TRACKS.forEach(([name, videoId, loop, volume]) => {
+      if (!have.has(videoId)) sounds.push({ id: Math.random().toString(36).slice(2, 10), name, autoName: false,
+        videoId, start: 0, loop, volume });
+    });
+    store.set('preset-hum-harvest', true); saveSounds();
+  }
   Engine.dmMaster = (store.get('master', 100)) / 100; $('#master').value = Engine.dmMaster * 100;
   Engine.onChange = renderPads;
   Engine.onEnded = id => { live.delete(id); };
