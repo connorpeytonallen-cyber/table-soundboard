@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Table Soundboard</title>
+<style>
+  :root {
+    --bg: #15131a; --panel: #1f1c26; --panel-2: #2a2633; --line: #3a3545;
+    --text: #ece8f2; --muted: #a39cb0; --accent: #d9a441; --accent-ink: #1a1408;
+    --live: #4fbf7a; --danger: #e0645c; --radius: 12px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  [hidden] { display: none !important; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px;
+    padding: 14px 16px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+  h1 { font-size: 20px; margin: 0; letter-spacing: .02em; }
+  h1 span { color: var(--accent); }
+  h2 { font-size: 18px; margin: 0 0 8px; }
+  main { max-width: 1000px; margin: 0 auto; padding: 20px 16px 60px; }
+  .status { font-size: 14px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: var(--muted); }
+  .dot.live { background: var(--live); box-shadow: 0 0 8px var(--live); }
+  .dot.bad { background: var(--danger); }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 18px; }
+  .home { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+  .home p { color: var(--muted); margin: 0 0 14px; }
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+  input[type=text], input:not([type]) { background: var(--panel-2); color: var(--text); border: 1px solid var(--line);
+    border-radius: 8px; padding: 10px 12px; font: inherit; min-width: 0; flex: 1 1 180px; }
+  input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--panel-2); color: var(--text); padding: 10px 14px; }
+  button:hover { border-color: var(--accent); }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-weight: 600; }
+  button.danger { color: var(--danger); }
+  label.check { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); font-size: 14px; }
+  input[type=range] { accent-color: var(--accent); }
+  .share { display: grid; gap: 10px; margin-bottom: 16px; }
+  .code { font: 700 26px/1 ui-monospace, Consolas, monospace; letter-spacing: .15em; color: var(--accent); }
+  .link { font: 13px ui-monospace, Consolas, monospace; color: var(--muted); word-break: break-all; }
+  .bar { display: flex; gap: 16px; align-items: center; flex-wrap: wrap; margin: 16px 0; }
+  .bar .grow { flex: 1; }
+  .hint { color: var(--muted); font-size: 14px; margin: 6px 0 0; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; }
+  .pad { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden;
+    display: flex; flex-direction: column; }
+  .pad.playing { border-color: var(--live); box-shadow: 0 0 0 1px var(--live), 0 0 18px rgba(79,191,122,.25); }
+  .pad .hit { all: unset; cursor: pointer; display: block; position: relative; aspect-ratio: 16/9;
+    background: #000 center/cover no-repeat; }
+  .pad .hit:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .pad .hit::after { content: "▶"; position: absolute; inset: 0; display: grid; place-items: center;
+    font-size: 34px; color: #fff; background: rgba(0,0,0,.35); text-shadow: 0 2px 6px #000; }
+  .pad.playing .hit::after { content: "■"; background: rgba(20,60,35,.45); }
+  .pad .body { padding: 10px 12px 12px; display: grid; gap: 8px; }
+  .pad .name { font-weight: 600; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .pad .ctl { display: flex; align-items: center; gap: 8px; }
+  .pad .ctl input[type=range] { flex: 1; min-width: 0; }
+  .pad .ctl button { padding: 4px 8px; font-size: 13px; }
+  .empty { color: var(--muted); text-align: center; padding: 40px 16px; border: 1px dashed var(--line); border-radius: var(--radius); }
+  .now { display: grid; gap: 8px; margin: 14px 0; padding: 0; list-style: none; }
+  .now li { background: var(--panel-2); border-radius: 8px; padding: 10px 12px; display: flex; gap: 10px; align-items: center; }
+  .now li::before { content: "♪"; color: var(--live); }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.7); display: grid; place-items: center; z-index: 10; padding: 16px; }
+  .overlay button { font-size: 20px; padding: 18px 28px; }
+  .toast { position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--panel-2);
+    border: 1px solid var(--line); padding: 10px 16px; border-radius: 10px; z-index: 20; max-width: calc(100% - 32px); }
+  #yt-box { position: fixed; left: -9999px; top: 0; width: 200px; height: 113px; overflow: hidden; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Table <span>Soundboard</span></h1>
+  <div class="status"><span id="dot" class="dot"></span><span id="statusText">Not connected</span></div>
+</header>
+
+<main>
+  <!-- Home -->
+  <section id="home" class="home">
+    <div class="card">
+      <h2>I'm the DM</h2>
+      <p>Open your soundboard. You'll get a room code and a link to send your players.</p>
+      <button id="startDm" class="primary">Open my soundboard</button>
+    </div>
+    <div class="card">
+      <h2>I'm a player</h2>
+      <p>Enter the room code from your DM. Sounds will play for you automatically.</p>
+      <form id="joinForm" class="row">
+        <input id="joinCode" placeholder="Room code" autocomplete="off" maxlength="12">
+        <button class="primary">Join</button>
+      </form>
+    </div>
+  </section>
+
+  <!-- DM -->
+  <section id="dm" hidden>
+    <div class="card share">
+      <div class="row" style="justify-content:space-between">
+        <div>
+          <div class="hint" style="margin:0">Room code</div>
+          <div class="code" id="roomCode">------</div>
+        </div>
+        <div style="text-align:right">
+          <div class="hint" style="margin:0">Players listening</div>
+          <div class="code" id="playerCount" style="letter-spacing:0">0</div>
+        </div>
+      </div>
+      <div class="row">
+        <div class="link grow" id="roomLink" style="flex:1"></div>
+        <button id="copyLink">Copy player link</button>
+      </div>
+    </div>
+
+    <form id="addForm" class="card">
+      <h2>Add a sound</h2>
+      <div class="row">
+        <input id="addUrl" placeholder="Paste a YouTube link" autocomplete="off" style="flex:3 1 260px">
+        <input id="addName" placeholder="Name (optional)" autocomplete="off">
+      </div>
+      <div class="row" style="margin-top:10px; justify-content:space-between">
+        <label class="check"><input type="checkbox" id="addLoop"> Loop it (music / ambience)</label>
+        <button class="primary">Add to board</button>
+      </div>
+      <p class="hint">Tip: links with a start time (like <code>?t=45</code>) start from that point.</p>
+    </form>
+
+    <div class="bar">
+      <label class="check">Master volume <input type="range" id="master" min="0" max="100" value="100"></label>
+      <span class="grow"></span>
+      <button id="stopAll" class="danger">Stop all sounds</button>
+    </div>
+
+    <div id="pads" class="grid"></div>
+  </section>
+
+  <!-- Player -->
+  <section id="player" hidden>
+    <div class="card">
+      <h2>Room <span class="code" id="pRoom" style="font-size:20px"></span></h2>
+      <p class="hint" id="pHint">Connecting to your DM…</p>
+      <ul class="now" id="nowPlaying"></ul>
+      <label class="check">My volume <input type="range" id="myVol" min="0" max="100" value="100"></label>
+    </div>
+  </section>
+</main>
+
+<div id="unlock" class="overlay" hidden><button class="primary" id="unlockBtn">🔊 Tap to turn on sound</button></div>
+<div id="toast" class="toast" hidden></div>
+<div id="yt-box" aria-hidden="true"></div>
+
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+const PREFIX = 'tablesb-q7x2-';
+const $ = s => document.querySelector(s);
+const store = {
+  get(k, d) { try { const v = localStorage.getItem(PREFIX + k); return v ? JSON.parse(v) : d; } catch { return d; } },
+  set(k, v) { try { localStorage.setItem(PREFIX + k, JSON.stringify(v)); } catch {} }
+};
+const esc = s => String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+function setStatus(text, state) {
+  $('#statusText').textContent = text;
+  $('#dot').className = 'dot' + (state ? ' ' + state : '');
+}
+let toastTimer;
+function toast(msg) {
+  const t = $('#toast'); t.textContent = msg; t.hidden = false;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.hidden = true, 4000);
+}
+
+/* ---------- YouTube link parsing ---------- */
+function parseTime(t) {
+  if (/^\d+$/.test(t)) return +t;
+  const m = t.match(/^(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?$/);
+  return m ? (+m[1] || 0) * 3600 + (+m[2] || 0) * 60 + (+m[3] || 0) : 0;
+}
+function parseYouTube(raw) {
+  raw = raw.trim();
+  if (/^[\w-]{11}$/.test(raw)) return { videoId: raw, start: 0 };
+  let id = null, start = 0;
+  try {
+    const u = new URL(raw.startsWith('http') ? raw : 'https://' + raw);
+    const h = u.hostname.replace(/^(www|m|music)\./, '');
+    if (h === 'youtu.be') id = u.pathname.slice(1, 12);
+    else if (h.endsWith('youtube.com') || h.endsWith('youtube-nocookie.com')) {
+      id = u.searchParams.get('v');
+      if (!id) { const m = u.pathname.match(/\/(embed|shorts|live|v)\/([\w-]{11})/); if (m) id = m[2]; }
+    }
+    const t = u.searchParams.get('t') || u.searchParams.get('start');
+    if (t) start = parseTime(t);
+  } catch {}
+  return id && /^[\w-]{11}$/.test(id) ? { videoId: id, start } : null;
+}
+
+/* ---------- Audio engine (hidden YouTube players, one per sound) ---------- */
+let ytReadyResolve; const ytReady = new Promise(r => ytReadyResolve = r);
+window.onYouTubeIframeAPIReady = () => ytReadyResolve();
+
+const Engine = {
+  players: new Map(),      // soundId -> { yt, wrap, sound, started }
+  dmMaster: 1, localVol: 1,
+  onChange() {}, onEnded() {}, onError() {}, onTitle() {},
+  vol(sound) { return Math.round((sound.volume ?? 100) * this.dmMaster * this.localVol); },
+  async play(sound, offset = 0) {
+    await ytReady;
+    this.stop(sound.id, true);
+    const wrap = document.createElement('div'); const el = document.createElement('div');
+    wrap.appendChild(el); $('#yt-box').appendChild(wrap);
+    const entry = { wrap, sound, started: false };
+    this.players.set(sound.id, entry);
+    entry.yt = new YT.Player(el, {
+      width: 200, height: 113, videoId: sound.videoId,
+      playerVars: { autoplay: 1, start: Math.floor((sound.start || 0) + offset), playsinline: 1, controls: 0, disablekb: 1 },
+      events: {
+        onReady: e => {
+          e.target.setVolume(this.vol(entry.sound)); e.target.playVideo();
+          setTimeout(() => { if (this.players.get(sound.id) === entry && !entry.started) showUnlock(); }, 2500);
+        },
+        onStateChange: e => {
+          if (e.data === YT.PlayerState.PLAYING) {
+            entry.started = true; maybeHideUnlock();
+            try { const t = e.target.getVideoData().title; if (t) this.onTitle(entry.sound, t); } catch {}
+          }
+          if (e.data === YT.PlayerState.ENDED && this.players.get(sound.id) === entry) {
+            if (entry.sound.loop) { e.target.seekTo(entry.sound.start || 0, true); e.target.playVideo(); }
+            else { this.stop(sound.id); this.onEnded(sound.id); }
+          }
+        },
+        onError: e => { if (this.players.get(sound.id) !== entry) return; this.stop(sound.id); this.onError(entry.sound, e.data); }
+      }
+    });
+    this.onChange();
+  },
+  stop(id, silent) {
+    const p = this.players.get(id); if (!p) return;
+    this.players.delete(id);
+    try { p.yt && p.yt.destroy(); } catch {}
+    p.wrap.remove();
+    maybeHideUnlock();
+    if (!silent) this.onChange();
+  },
+  stopAll() { [...this.players.keys()].forEach(id => this.stop(id, true)); maybeHideUnlock(); this.onChange(); },
+  update(sound) {
+    const p = this.players.get(sound.id); if (!p) return;
+    p.sound = sound; this.applyVolume(sound.id);
+  },
+  applyVolume(id) {
+    const ids = id ? [id] : [...this.players.keys()];
+    ids.forEach(i => { const p = this.players.get(i); try { p.yt.setVolume(this.vol(p.sound)); } catch {} });
+  },
+  isPlaying(id) { return this.players.has(id); }
+};
+
+// Browsers block sound until the person clicks the page. If a sound doesn't start, ask for one tap.
+function showUnlock() { $('#unlock').hidden = false; }
+function maybeHideUnlock() {
+  if ([...Engine.players.values()].every(p => p.started)) $('#unlock').hidden = true;
+}
+$('#unlockBtn').onclick = () => {
+  Engine.players.forEach(p => { try { p.yt.playVideo(); } catch {} });
+  $('#unlock').hidden = true;
+};
+
+/* ---------- DM ---------- */
+let peer;
+const conns = new Set();
+const live = new Map();       // soundId -> startedAt (ms), for late joiners
+let sounds = [];
+
+function newCode() {
+  const c = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({ length: 6 }, () => c[Math.floor(Math.random() * c.length)]).join('');
+}
+function broadcast(msg) { conns.forEach(c => { if (c.open) c.send(msg); }); }
+function saveSounds() { store.set('sounds', sounds); }
+
+function startDM() {
+  $('#home').hidden = true; $('#dm').hidden = false;
+  let room = store.get('room'); if (!room) { room = newCode(); store.set('room', room); }
+  const link = location.origin + location.pathname + '?room=' + room;
+  $('#roomCode').textContent = room; $('#roomLink').textContent = link;
+  $('#copyLink').onclick = () => navigator.clipboard.writeText(link).then(() => toast('Player link copied'), () => toast(link));
+
+  sounds = store.get('sounds', []);
+  Engine.dmMaster = (store.get('master', 100)) / 100; $('#master').value = Engine.dmMaster * 100;
+  Engine.onChange = renderPads;
+  Engine.onEnded = id => { live.delete(id); };
+  Engine.onTitle = (sound, title) => {
+    const s = sounds.find(x => x.id === sound.id);
+    if (s && s.autoName) { updateSound(s.id, { name: title, autoName: false }); renderPads(); }
+  };
+  Engine.onError = (sound, code) => {
+    live.delete(sound.id); broadcast({ type: 'stop', id: sound.id });
+    toast(code === 101 || code === 150 ? `"${sound.name}" can't play here — the uploader blocked embedding. Try another upload.`
+                                       : `"${sound.name}" couldn't play (YouTube error ${code}).`);
+  };
+  renderPads();
+
+  setStatus('Opening room…');
+  peer = new Peer(PREFIX + room);
+  peer.on('open', () => setStatus('Room open', 'live'));
+  peer.on('disconnected', () => { setStatus('Reconnecting…'); setTimeout(() => { if (!peer.destroyed) peer.reconnect(); }, 1500); });
+  peer.on('error', err => {
+    if (err.type === 'unavailable-id') setStatus('This room is already open in another tab or window', 'bad');
+    else if (err.type === 'network' || err.type === 'server-error') setStatus('Connection server unreachable — retrying…', 'bad');
+    else console.warn(err);
+  });
+  peer.on('connection', c => {
+    c.on('open', () => {
+      conns.add(c); updateCount();
+      const now = Date.now();
+      c.send({ type: 'sync', master: Engine.dmMaster,
+        playing: [...live].map(([id, at]) => ({ sound: sounds.find(s => s.id === id), offset: (now - at) / 1000 })).filter(p => p.sound) });
+    });
+    c.on('close', () => { conns.delete(c); updateCount(); });
+    c.on('error', () => { conns.delete(c); updateCount(); });
+  });
+}
+function updateCount() { $('#playerCount').textContent = [...conns].filter(c => c.open).length; }
+
+function togglePad(id) {
+  const s = sounds.find(x => x.id === id); if (!s) return;
+  if (Engine.isPlaying(id)) { Engine.stop(id); live.delete(id); broadcast({ type: 'stop', id }); }
+  else { Engine.play(s); live.set(id, Date.now()); broadcast({ type: 'play', sound: s }); }
+}
+function updateSound(id, changes) {
+  const s = sounds.find(x => x.id === id); if (!s) return;
+  Object.assign(s, changes); saveSounds();
+  Engine.update(s); if (live.has(id)) broadcast({ type: 'update', sound: s });
+}
+
+function renderPads() {
+  const box = $('#pads');
+  if (!sounds.length) { box.innerHTML = '<div class="empty" style="grid-column:1/-1">No sounds yet. Paste a YouTube link above to add your first one.</div>'; return; }
+  box.innerHTML = sounds.map(s => `
+    <div class="pad ${Engine.isPlaying(s.id) ? 'playing' : ''}" data-id="${s.id}">
+      <button class="hit" data-act="toggle" aria-label="Play or stop ${esc(s.name)}"
+        style="background-image:url('https://i.ytimg.com/vi/${s.videoId}/mqdefault.jpg')"></button>
+      <div class="body">
+        <div class="name" title="${esc(s.name)}">${esc(s.name)}</div>
+        <div class="ctl">
+          <input type="range" min="0" max="100" value="${s.volume ?? 100}" data-act="vol" aria-label="Volume">
+          <label class="check"><input type="checkbox" data-act="loop" ${s.loop ? 'checked' : ''}> Loop</label>
+          <button class="danger" data-act="del" aria-label="Remove">✕</button>
+        </div>
+      </div>
+    </div>`).join('');
+}
+$('#pads').addEventListener('click', e => {
+  const act = e.target.dataset.act; const id = e.target.closest('.pad')?.dataset.id; if (!id) return;
+  if (act === 'toggle') togglePad(id);
+  if (act === 'del') {
+    const s = sounds.find(x => x.id === id);
+    if (!confirm(`Remove "${s.name}" from the board?`)) return;
+    if (Engine.isPlaying(id)) togglePad(id);
+    sounds = sounds.filter(x => x.id !== id); saveSounds(); renderPads();
+  }
+});
+$('#pads').addEventListener('input', e => {
+  const id = e.target.closest('.pad')?.dataset.id; if (!id) return;
+  if (e.target.dataset.act === 'vol') updateSound(id, { volume: +e.target.value });
+});
+$('#pads').addEventListener('change', e => {
+  const id = e.target.closest('.pad')?.dataset.id; if (!id) return;
+  if (e.target.dataset.act === 'loop') updateSound(id, { loop: e.target.checked });
+});
+
+$('#addForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const parsed = parseYouTube($('#addUrl').value);
+  if (!parsed) { toast("That doesn't look like a YouTube link."); return; }
+  const name = $('#addName').value.trim();
+  sounds.push({ id: Math.random().toString(36).slice(2, 10), name: name || 'Sound ' + (sounds.length + 1), autoName: !name,
+    videoId: parsed.videoId, start: parsed.start, loop: $('#addLoop').checked, volume: 100 });
+  saveSounds(); renderPads();
+  $('#addUrl').value = ''; $('#addName').value = ''; $('#addLoop').checked = false; $('#addUrl').focus();
+});
+$('#master').addEventListener('input', e => {
+  Engine.dmMaster = +e.target.value / 100; store.set('master', +e.target.value);
+  Engine.applyVolume(); broadcast({ type: 'master', value: Engine.dmMaster });
+});
+$('#stopAll').onclick = () => { Engine.stopAll(); live.clear(); broadcast({ type: 'stopAll' }); };
+
+/* ---------- Player ---------- */
+function joinRoom(room) {
+  room = room.trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (!room) return;
+  history.replaceState(null, '', '?room=' + room);
+  $('#home').hidden = true; $('#player').hidden = false; $('#pRoom').textContent = room;
+  Engine.localVol = store.get('myVol', 100) / 100; $('#myVol').value = Engine.localVol * 100;
+  Engine.onChange = renderNow;
+  renderNow();
+
+  let conn, retryTimer, openTimer;
+  const hint = t => $('#pHint').textContent = t;
+  const retry = (ms) => { clearTimeout(retryTimer); retryTimer = setTimeout(connect, ms); };
+
+  function connect() {
+    if (peer.destroyed) return;
+    if (peer.disconnected) { peer.reconnect(); retry(2000); return; }
+    setStatus('Connecting…'); hint('Connecting to your DM…');
+    conn = peer.connect(PREFIX + room, { reliable: true });
+    const c = conn;
+    clearTimeout(openTimer);
+    openTimer = setTimeout(() => {
+      if (!c.open && conn === c) { hint("Still trying… if this keeps up, your network may be blocking the connection."); c.close(); retry(1000); }
+    }, 12000);
+    c.on('open', () => { clearTimeout(openTimer); setStatus('Connected', 'live'); hint("You're in. Sounds play automatically when your DM starts them."); });
+    c.on('data', handle);
+    c.on('close', () => {
+      if (conn !== c) return;
+      Engine.stopAll(); setStatus('Reconnecting…', 'bad'); hint('Lost the DM. Reconnecting…'); retry(3000);
+    });
+  }
+  function handle(msg) {
+    switch (msg.type) {
+      case 'sync':
+        Engine.stopAll(); Engine.dmMaster = msg.master ?? 1;
+        msg.playing.forEach(p => Engine.play(p.sound, p.sound.loop ? 0 : p.offset));
+        break;
+      case 'play': Engine.play(msg.sound); break;
+      case 'stop': Engine.stop(msg.id); break;
+      case 'stopAll': Engine.stopAll(); break;
+      case 'update': Engine.update(msg.sound); renderNow(); break;
+      case 'master': Engine.dmMaster = msg.value; Engine.applyVolume(); break;
+    }
+  }
+
+  peer = new Peer();
+  peer.on('open', connect);
+  peer.on('error', err => {
+    if (err.type === 'peer-unavailable') { setStatus('Waiting for DM', 'bad'); hint("Your DM's room isn't open yet. Waiting…"); retry(4000); }
+    else if (err.type === 'network' || err.type === 'server-error' || err.type === 'disconnected') { setStatus('Connection server unreachable', 'bad'); retry(4000); }
+    else console.warn(err);
+  });
+  peer.on('disconnected', () => retry(2000));
+}
+function renderNow() {
+  const list = [...Engine.players.values()];
+  $('#nowPlaying').innerHTML = list.length
+    ? list.map(p => `<li>${esc(p.sound.name)}</li>`).join('')
+    : '<li style="color:var(--muted)">Nothing playing right now</li>';
+}
+$('#myVol').addEventListener('input', e => {
+  Engine.localVol = +e.target.value / 100; store.set('myVol', +e.target.value); Engine.applyVolume();
+});
+
+/* ---------- Start ---------- */
+$('#startDm').onclick = startDM;
+$('#joinForm').addEventListener('submit', e => { e.preventDefault(); joinRoom($('#joinCode').value); });
+const urlRoom = new URLSearchParams(location.search).get('room');
+if (urlRoom) {
+  // A click is needed before browsers allow sound, so the join button doubles as the "unlock".
+  $('#joinCode').value = urlRoom.toUpperCase();
+  $('#startDm').closest('.card').hidden = true;
+}
+</script>
+</body>
+</html>
