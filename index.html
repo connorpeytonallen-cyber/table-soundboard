@@ -278,68 +278,124 @@ function parseYouTube(raw) {
 let ytReadyResolve; const ytReady = new Promise(r => ytReadyResolve = r);
 window.onYouTubeIframeAPIReady = () => ytReadyResolve();
 
+// "100%" on any slider maps to this YouTube volume, so full volume is comfortable rather than blaring.
+const FULL_VOLUME = 55;
+
+// Every sound on the board gets a hidden, preloaded YouTube player, so pressing play starts
+// right away from the beginning on every computer instead of waiting for a player to load.
 const Engine = {
-  players: new Map(),      // soundId -> { yt, wrap, sound, started }
+  players: new Map(),      // soundId -> { yt, wrap, sound, ready, readyP, started }
+  active: new Set(),       // soundIds currently playing
   dmMaster: 1, localVol: 1,
   onChange() {}, onEnded() {}, onError() {}, onTitle() {},
-  vol(sound) { return Math.round((sound.volume ?? 100) * this.dmMaster * this.localVol); },
-  async play(sound, offset = 0) {
+  vol(sound) { return Math.round(FULL_VOLUME * ((sound.volume ?? 100) / 100) * this.dmMaster * this.localVol); },
+
+  async prepare(sound) {
     await ytReady;
-    this.stop(sound.id, true);
+    let e = this.players.get(sound.id);
+    if (e && e.sound.videoId === sound.videoId) { e.sound = sound; return e; }
+    if (e) this.remove(sound.id, true);
     const wrap = document.createElement('div'); const el = document.createElement('div');
     wrap.appendChild(el); $('#yt-box').appendChild(wrap);
-    const entry = { wrap, sound, started: false };
-    this.players.set(sound.id, entry);
-    entry.yt = new YT.Player(el, {
-      width: 200, height: 113, videoId: sound.videoId,
-      playerVars: { autoplay: 1, start: Math.floor((sound.start || 0) + offset), playsinline: 1, controls: 0, disablekb: 1 },
-      events: {
-        onReady: e => {
-          e.target.setVolume(this.vol(entry.sound)); e.target.playVideo();
-          setTimeout(() => { if (this.players.get(sound.id) === entry && !entry.started) showUnlock(); }, 2500);
-        },
-        onStateChange: e => {
-          if (e.data === YT.PlayerState.PLAYING) {
-            entry.started = true; maybeHideUnlock();
-            try { const t = e.target.getVideoData().title; if (t) this.onTitle(entry.sound, t); } catch {}
+    e = { wrap, sound, ready: false, started: false };
+    this.players.set(sound.id, e);
+    e.readyP = new Promise(res => {
+      e.yt = new YT.Player(el, {
+        width: 200, height: 113, videoId: sound.videoId,
+        playerVars: { autoplay: 0, start: Math.floor(sound.start || 0), playsinline: 1, controls: 0, disablekb: 1, rel: 0 },
+        events: {
+          onReady: ev => { e.ready = true; ev.target.setVolume(this.vol(e.sound)); res(); },
+          onStateChange: ev => this._state(e, ev.data),
+          onError: ev => {
+            if (this.players.get(sound.id) !== e) return;
+            const wasPlaying = this.active.has(sound.id);
+            this.remove(sound.id, true); res();
+            if (wasPlaying || this.reportLoadErrors) this.onError(e.sound, ev.data);
+            this.onChange();
           }
-          if (e.data === YT.PlayerState.ENDED && this.players.get(sound.id) === entry) {
-            if (entry.sound.loop) { e.target.seekTo(entry.sound.start || 0, true); e.target.playVideo(); }
-            else { this.stop(sound.id); this.onEnded(sound.id); }
-          }
-        },
-        onError: e => { if (this.players.get(sound.id) !== entry) return; this.stop(sound.id); this.onError(entry.sound, e.data); }
-      }
+        }
+      });
     });
-    this.onChange();
+    return e;
   },
-  stop(id, silent) {
-    const p = this.players.get(id); if (!p) return;
+
+  async play(sound, offset = 0) {
+    this.active.add(sound.id); this.onChange();
+    const e = await this.prepare(sound);
+    await e.readyP;
+    if (!this.active.has(sound.id) || this.players.get(sound.id) !== e) return;
+    e.started = false;
+    e.yt.setVolume(this.vol(e.sound));            // set the level before any sound comes out
+    e.yt.seekTo((e.sound.start || 0) + offset, true);
+    e.yt.playVideo();
+    setTimeout(() => { if (this.active.has(sound.id) && this.players.get(sound.id) === e && !e.started) showUnlock(); }, 3000);
+  },
+
+  _state(e, s) {
+    const id = e.sound.id;
+    if (s === YT.PlayerState.PLAYING) {
+      if (!this.active.has(id)) { e.yt.pauseVideo(); return; }
+      e.started = true; maybeHideUnlock();
+      try { const t = e.yt.getVideoData().title; if (t) this.onTitle(e.sound, t); } catch {}
+    }
+    if (s === YT.PlayerState.ENDED && this.active.has(id)) {
+      if (e.sound.loop) { e.yt.seekTo(e.sound.start || 0, true); e.yt.playVideo(); }
+      else { this.active.delete(id); this._rewind(e); this.onEnded(id); this.onChange(); }
+    }
+  },
+  _rewind(e) {
+    try { e.yt.pauseVideo(); e.yt.seekTo(e.sound.start || 0, true); e.yt.setVolume(this.vol(e.sound)); } catch {}
+  },
+
+  // Quick fade so stopping never sounds like a hard cut.
+  stop(id) {
+    if (!this.active.delete(id)) return;
+    const e = this.players.get(id);
+    if (e && e.ready) {
+      let v = e.yt.getVolume(); const step = Math.max(1, v / 8);
+      const t = setInterval(() => {
+        if (this.active.has(id) || this.players.get(id) !== e) { clearInterval(t); return; }
+        v -= step;
+        if (v <= 0) { clearInterval(t); this._rewind(e); return; }
+        try { e.yt.setVolume(v); } catch {}
+      }, 30);
+    }
+    maybeHideUnlock(); this.onChange();
+  },
+  stopAll() { [...this.active].forEach(id => this.stop(id)); },
+
+  remove(id, silent) {
+    this.active.delete(id);
+    const e = this.players.get(id); if (!e) return;
     this.players.delete(id);
-    try { p.yt && p.yt.destroy(); } catch {}
-    p.wrap.remove();
+    try { e.yt && e.yt.destroy(); } catch {}
+    e.wrap.remove();
     maybeHideUnlock();
     if (!silent) this.onChange();
   },
-  stopAll() { [...this.players.keys()].forEach(id => this.stop(id, true)); maybeHideUnlock(); this.onChange(); },
+  removeAll() { [...this.players.keys()].forEach(id => this.remove(id, true)); this.active.clear(); maybeHideUnlock(); },
+
+  // Preload exactly this list of sounds.
+  load(sounds) {
+    const ids = new Set(sounds.map(s => s.id));
+    [...this.players.keys()].forEach(id => { if (!ids.has(id)) this.remove(id, true); });
+    sounds.forEach(s => this.prepare(s));
+  },
   update(sound) {
-    const p = this.players.get(sound.id); if (!p) return;
-    p.sound = sound; this.applyVolume(sound.id);
+    const e = this.players.get(sound.id); if (!e) return;
+    e.sound = sound; if (e.ready) try { e.yt.setVolume(this.vol(sound)); } catch {}
   },
-  applyVolume(id) {
-    const ids = id ? [id] : [...this.players.keys()];
-    ids.forEach(i => { const p = this.players.get(i); try { p.yt.setVolume(this.vol(p.sound)); } catch {} });
-  },
-  isPlaying(id) { return this.players.has(id); }
+  applyVolume() { this.players.forEach(e => { if (e.ready) try { e.yt.setVolume(this.vol(e.sound)); } catch {} }); },
+  isPlaying(id) { return this.active.has(id); }
 };
 
 // Browsers block sound until the person clicks the page. If a sound doesn't start, ask for one tap.
 function showUnlock() { $('#unlock').hidden = false; }
 function maybeHideUnlock() {
-  if ([...Engine.players.values()].every(p => p.started)) $('#unlock').hidden = true;
+  if ([...Engine.active].every(id => { const e = Engine.players.get(id); return !e || e.started; })) $('#unlock').hidden = true;
 }
 $('#unlockBtn').onclick = () => {
-  Engine.players.forEach(p => { try { p.yt.playVideo(); } catch {} });
+  Engine.active.forEach(id => { const e = Engine.players.get(id); try { e && e.yt.playVideo(); } catch {} });
   $('#unlock').hidden = true;
 };
 
@@ -379,6 +435,7 @@ function startDM() {
                                        : `"${sound.name}" couldn't play (YouTube error ${code}).`);
   };
   renderPads();
+  Engine.reportLoadErrors = true; Engine.load(sounds);
 
   setStatus('Opening room…');
   peer = new Peer(PREFIX + room);
@@ -392,6 +449,7 @@ function startDM() {
   peer.on('connection', c => {
     c.on('open', () => {
       conns.add(c); updateCount();
+      c.send({ type: 'board', sounds });   // players preload every sound right away
       const now = Date.now();
       c.send({ type: 'sync', master: Engine.dmMaster,
         playing: [...live].map(([id, at]) => ({ sound: sounds.find(s => s.id === id), offset: (now - at) / 1000 })).filter(p => p.sound) });
@@ -410,8 +468,9 @@ function togglePad(id) {
 function updateSound(id, changes) {
   const s = sounds.find(x => x.id === id); if (!s) return;
   Object.assign(s, changes); saveSounds();
-  Engine.update(s); if (live.has(id)) broadcast({ type: 'update', sound: s });
+  Engine.update(s); broadcast({ type: 'update', sound: s });
 }
+function sendBoard() { broadcast({ type: 'board', sounds }); }
 
 function renderPads() {
   const box = $('#pads');
@@ -437,7 +496,8 @@ $('#pads').addEventListener('click', e => {
     const s = sounds.find(x => x.id === id);
     if (!confirm(`Remove "${s.name}" from the board?`)) return;
     if (Engine.isPlaying(id)) togglePad(id);
-    sounds = sounds.filter(x => x.id !== id); saveSounds(); renderPads();
+    sounds = sounds.filter(x => x.id !== id); saveSounds();
+    Engine.remove(id); sendBoard(); renderPads();
   }
 });
 $('#pads').addEventListener('input', e => {
@@ -454,9 +514,10 @@ $('#addForm').addEventListener('submit', e => {
   const parsed = parseYouTube($('#addUrl').value);
   if (!parsed) { toast("That doesn't look like a YouTube link."); return; }
   const name = $('#addName').value.trim();
-  sounds.push({ id: Math.random().toString(36).slice(2, 10), name: name || 'Sound ' + (sounds.length + 1), autoName: !name,
-    videoId: parsed.videoId, start: parsed.start, loop: $('#addLoop').checked, volume: 100 });
-  saveSounds(); renderPads();
+  const s = { id: Math.random().toString(36).slice(2, 10), name: name || 'Sound ' + (sounds.length + 1), autoName: !name,
+    videoId: parsed.videoId, start: parsed.start, loop: $('#addLoop').checked, volume: 100 };
+  sounds.push(s); saveSounds(); renderPads();
+  Engine.prepare(s); sendBoard();
   $('#addUrl').value = ''; $('#addName').value = ''; $('#addLoop').checked = false; $('#addUrl').focus();
 });
 $('#master').addEventListener('input', e => {
@@ -470,7 +531,7 @@ function leaveDM() {
   broadcast({ type: 'ended' });
   const p = peer; peer = null;
   setTimeout(() => { try { p.destroy(); } catch {} }, 400);
-  conns.clear(); live.clear(); Engine.stopAll(); Engine.onChange = () => {};
+  conns.clear(); live.clear(); Engine.onChange = () => {}; Engine.reportLoadErrors = false; Engine.removeAll();
   $('#dm').hidden = true; $('#hero').hidden = false; $('#statusBox').hidden = true; document.body.classList.remove('gm');
   $('#startDm').hidden = !!urlRoom; document.title = 'The Town of Hudson';
 }
@@ -507,7 +568,7 @@ function joinRoom(raw) {
     alive = false; clearTimeout(retryTimer); clearTimeout(openTimer);
     try { me.destroy(); } catch {}
     if (peer === me) peer = null;
-    Engine.stopAll(); Engine.onChange = () => {};
+    Engine.removeAll(); Engine.onChange = () => {};
     setJoining(false); $('#statusBox').hidden = true;
   }
   function fail(text) {           // before getting in: back to the code box
@@ -552,6 +613,7 @@ function joinRoom(raw) {
   }
   function handle(msg) {
     switch (msg.type) {
+      case 'board': Engine.load(msg.sounds); break;
       case 'sync':
         Engine.stopAll(); Engine.dmMaster = msg.master ?? 1;
         msg.playing.forEach(p => Engine.play(p.sound, p.sound.loop ? 0 : p.offset));
